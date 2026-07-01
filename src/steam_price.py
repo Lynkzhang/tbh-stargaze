@@ -223,7 +223,9 @@ class SteamPriceClient:
 
         For gear, the first hash can legitimately be unlisted while the fallback
         hash has a price. Do not settle on a no-price entry until all variants
-        have fresh no-price responses.
+        have fresh no-price responses. A fresh failed entry is still a completed
+        attempt for single-hash items, so callers can show "failed" instead of
+        leaving the row pending until the retry TTL expires.
         """
         no_price: list[tuple[str, PriceEntry]] = []
         for hash_name in market_hash_names:
@@ -232,8 +234,6 @@ class SteamPriceClient:
                 return None
             if entry.price:
                 return hash_name, entry
-            if entry.failed:
-                return None
             no_price.append((hash_name, entry))
         return no_price[0] if no_price else None
 
