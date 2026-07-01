@@ -23,9 +23,8 @@
 
 1. 下载最新 Release 的 `TBHStargaze-portable.zip`
 2. 解压到任意目录
-3. 首次运行：双击 `tools\install-deps.bat`（安装 frida + psutil，约 30 秒）
-4. 启动游戏 → 双击 `启动.bat`（需管理员权限）
-5. 浏览器自动打开 `http://127.0.0.1:18765/`
+3. 启动游戏 → 双击 `启动.bat`（需管理员权限）
+4. 浏览器自动打开 `http://127.0.0.1:18765/`
 
 ### 方式二：本地 Python 环境
 

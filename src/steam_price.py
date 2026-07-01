@@ -5,7 +5,7 @@ Design (copied from tbh-copilot's approach):
   - appid: 3678970
   - endpoint: https://steamcommunity.com/market/priceoverview/?appid=3678970&currency=23&market_hash_name=...
   - currency 23 = CNY
-  - market_hash_name for gear: "<English Name> (<Grade>)" e.g. "Dimensional Gloves (Legendary)"
+  - market_hash_name for gear: "<English Name> (<Grade>) A" first, then "<English Name> (<Grade>)"
   - market_hash_name for material: "<English Name>" (no grade suffix)
   - Only certain rarities are tradeable. Code mirrors tbh-copilot:
         TRADE_GRADES = Legendary, Immortal, Arcana, Beyond
@@ -94,7 +94,7 @@ class SteamPriceClient:
         get_cached(market_hash_name) -> PriceEntry | None    (synchronous, never blocks)
         request_async(market_hash_name)                       (queues a fetch, returns immediately)
         steam_link(market_hash_name) -> str                   (listing URL for click-through)
-        market_hash_for_gear(item_id, name, grade) -> str|None
+        market_hashes_for_gear(item_id) -> list[str]
         market_hash_for_material(item_id, name) -> str|None
     """
 
@@ -152,17 +152,25 @@ class SteamPriceClient:
 
     # ---------------- Hash building ----------------
 
-    def market_hash_for_gear(self, item_id: int) -> str | None:
-        """Build the Steam Market hash for a gear item, or None if not tradeable."""
+    def market_hashes_for_gear(self, item_id: int) -> list[str]:
+        """Build possible Steam Market hashes for a gear item."""
         sid = str(item_id)
         name = self.gear_market_names.get(sid)
         if not name:
-            return None
+            return []
         grade = (self.item_grades.get(sid) or "").upper()
         if grade not in TRADE_GRADES:
-            return None
+            return []
         suffix = GRADE_SUFFIX[grade]
-        return f"{name} ({suffix})"
+        base = f"{name} ({suffix})"
+        # tbh-copilot probes the suffixed listing first. Most live gear listings
+        # use this " A" variant; the bare name is kept as a fallback.
+        return [f"{base} A", base]
+
+    def market_hash_for_gear(self, item_id: int) -> str | None:
+        """Return the preferred Steam Market hash for a gear item."""
+        hashes = self.market_hashes_for_gear(item_id)
+        return hashes[0] if hashes else None
 
     def market_hash_for_material(self, item_id: int) -> str | None:
         """Materials use just the English name as their Steam hash, no grade suffix."""
@@ -185,6 +193,19 @@ class SteamPriceClient:
             or self.market_hash_for_generic(item_id)
         )
 
+    def market_hashes_for(self, item_id: int) -> list[str]:
+        """Try gear -> material -> generic, returning every viable hash variant."""
+        gear = self.market_hashes_for_gear(item_id)
+        if gear:
+            return gear
+        material = self.market_hash_for_material(item_id)
+        if material:
+            return [material]
+        generic = self.market_hash_for_generic(item_id)
+        if generic:
+            return [generic]
+        return []
+
     def steam_link(self, market_hash_name: str) -> str:
         return f"https://steamcommunity.com/market/listings/{APPID}/{urllib.parse.quote(market_hash_name)}"
 
@@ -197,6 +218,25 @@ class SteamPriceClient:
                 return entry
             return None
 
+    def get_cached_any(self, market_hash_names: list[str]) -> tuple[str, PriceEntry] | None:
+        """Return a fresh cached price for any hash, preferring priced entries.
+
+        For gear, the first hash can legitimately be unlisted while the fallback
+        hash has a price. Do not settle on a no-price entry until all variants
+        have fresh no-price responses.
+        """
+        no_price: list[tuple[str, PriceEntry]] = []
+        for hash_name in market_hash_names:
+            entry = self.get_cached(hash_name)
+            if not entry:
+                return None
+            if entry.price:
+                return hash_name, entry
+            if entry.failed:
+                return None
+            no_price.append((hash_name, entry))
+        return no_price[0] if no_price else None
+
     def request_async(self, market_hash_name: str) -> None:
         """Queue a fetch. No-op if already cached & fresh."""
         if self.get_cached(market_hash_name) is not None:
@@ -205,6 +245,11 @@ class SteamPriceClient:
             if market_hash_name not in self._queue:
                 self._queue.append(market_hash_name)
         self._ensure_worker()
+
+    def request_async_many(self, market_hash_names: list[str]) -> None:
+        """Queue every missing hash variant."""
+        for hash_name in market_hash_names:
+            self.request_async(hash_name)
 
     # ---------------- Worker thread ----------------
 

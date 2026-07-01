@@ -20,15 +20,15 @@ rem ---- Verify python works ----
 "%PYW%" --version >nul 2>&1
 if errorlevel 1 goto err_no_python
 
-rem ---- Quick frida import test ----
-"%PYW%" -c "import frida" >nul 2>&1
+rem ---- Quick dependency import test ----
+"%PYW%" -c "import frida, psutil" >nul 2>&1
 if errorlevel 1 goto need_install
 goto deps_ok
 
 :need_install
 echo.
 echo ============================================================
-echo  First-run setup: installing dependencies (one-time, ~30s)
+echo  Missing dependencies: installing once into bundled Python
 echo ============================================================
 echo.
 if "%PYDIR%"=="" goto install_system
@@ -61,7 +61,7 @@ if errorlevel 1 goto err_install
 goto post_install
 
 :post_install
-"%PYW%" -c "import frida" >nul 2>&1
+"%PYW%" -c "import frida, psutil" >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] frida still missing after install.
     pause

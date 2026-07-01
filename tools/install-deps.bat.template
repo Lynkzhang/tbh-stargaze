@@ -7,7 +7,7 @@ set "PYDIR=%ROOT%\..\python-portable"
 set "WHEELS=%ROOT%\..\wheels"
 
 echo ============================================================
-echo  TBHStargaze - Install dependencies (first run only)
+echo  TBHStargaze - Verify bundled dependencies
 echo ============================================================
 echo.
 
@@ -23,6 +23,15 @@ if not exist "%PYDIR%\get-pip.py" (
     echo         Re-extract the zip or copy get-pip.py to %PYDIR%
     pause
     exit /b 2
+)
+
+"%PYDIR%\python.exe" -c "import frida, psutil" >nul 2>&1
+if not errorlevel 1 (
+    echo [OK] Dependencies are already installed.
+    echo      You can run the launcher .bat directly.
+    echo.
+    pause
+    exit /b 0
 )
 
 rem Step 1: Bootstrap pip into the embeddable Python (offline first)

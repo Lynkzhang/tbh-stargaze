@@ -2,10 +2,12 @@ TBHStargaze - 宝箱观星
 ========================================
 
 【首次使用】
-  1. 双击 tools\install-deps.bat 安装依赖（只需要一次，几十秒）
-  2. 启动游戏 TaskBarHero
-  3. 右键 启动.bat -> 以管理员身份运行
-  4. 浏览器会自动打开 http://127.0.0.1:18765/
+  1. 启动游戏 TaskBarHero
+  2. 右键 启动.bat -> 以管理员身份运行
+  3. 浏览器会自动打开 http://127.0.0.1:18765/
+
+  依赖已经内置在 python-portable 中。正常不需要运行 tools\install-deps.bat；
+  只有误删 python-portable\Lib\site-packages 后才需要用它修复依赖。
 
 【日常使用】
   1. 开游戏
@@ -50,9 +52,9 @@ TBHStargaze - 宝箱观星
     web\                  网页界面
     resources\            Frida agent + 物品名 + 配置
   python-portable\        内置 Python 3.12
-  wheels\                 frida + psutil 离线安装包
+  wheels\                 frida + psutil 离线安装包（修复依赖用）
   tools\
-    install-deps.bat      首次安装依赖
+    install-deps.bat      修复依赖
 
 【更新】
   覆盖整个文件夹即可。watched_ids.json 配置文件在 src\resources\，

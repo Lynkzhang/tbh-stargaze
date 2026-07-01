@@ -425,17 +425,20 @@ def http_mode(host: str, port: int) -> int:
                         "name": item_names.get(str(iid), "?"),
                         "grade": item_grades.get(str(iid), ""),
                     }
-                    hash_name = price_client.market_hash_for(iid)
-                    if hash_name:
-                        out["market_hash"] = hash_name
-                        out["market_link"] = price_client.steam_link(hash_name)
-                        entry = price_client.get_cached(hash_name)
-                        if entry is not None:
+                    hash_names = price_client.market_hashes_for(iid)
+                    if hash_names:
+                        out["market_hash"] = hash_names[0]
+                        out["market_link"] = price_client.steam_link(hash_names[0])
+                        cached = price_client.get_cached_any(hash_names)
+                        if cached is not None:
+                            hash_name, entry = cached
+                            out["market_hash"] = hash_name
+                            out["market_link"] = price_client.steam_link(hash_name)
                             out["price"] = entry.price  # None means tried but no listing
                             out["price_failed"] = entry.failed
                         else:
                             # Not cached - queue a fetch for next poll, mark pending now.
-                            price_client.request_async(hash_name)
+                            price_client.request_async_many(hash_names)
                             out["price_pending"] = True
                     else:
                         # Not tradeable at all (wrong grade or unknown name)
@@ -468,16 +471,17 @@ def http_mode(host: str, port: int) -> int:
                     except ValueError:
                         self._json({"error": "bad id"}, status=400)
                         return
-                    hash_name = price_client.market_hash_for(iid)
-                    if not hash_name:
+                    hash_names = price_client.market_hashes_for(iid)
+                    if not hash_names:
                         self._json({
                             "id": iid,
                             "price_unavailable": True,
                             "reason": "not tradeable (wrong grade or unknown item)",
                         })
                         return
-                    entry = price_client.get_cached(hash_name)
-                    if entry is not None:
+                    cached = price_client.get_cached_any(hash_names)
+                    if cached is not None:
+                        hash_name, entry = cached
                         self._json({
                             "id": iid,
                             "market_hash": hash_name,
@@ -487,11 +491,11 @@ def http_mode(host: str, port: int) -> int:
                             "failed": entry.failed,
                         })
                     else:
-                        price_client.request_async(hash_name)
+                        price_client.request_async_many(hash_names)
                         self._json({
                             "id": iid,
-                            "market_hash": hash_name,
-                            "market_link": price_client.steam_link(hash_name),
+                            "market_hash": hash_names[0],
+                            "market_link": price_client.steam_link(hash_names[0]),
                             "price_pending": True,
                         })
             elif p == "/health":

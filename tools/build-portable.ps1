@@ -131,11 +131,12 @@ $wheelCache = Join-Path $CacheDir 'wheels'
 New-Item -ItemType Directory -Force -Path $wheelDir | Out-Null
 New-Item -ItemType Directory -Force -Path $wheelCache | Out-Null
 
-# Skip download if cache already has both wheels
+# Skip download if cache already has pip + runtime wheels
 $cachedWheels = Get-ChildItem $wheelCache -Filter '*.whl' -ErrorAction SilentlyContinue
+$havePip = $cachedWheels | Where-Object { $_.Name -like 'pip-*' }
 $haveFrida = $cachedWheels | Where-Object { $_.Name -like 'frida-*' }
 $havePsutil = $cachedWheels | Where-Object { $_.Name -like 'psutil-*' }
-if ($haveFrida -and $havePsutil) {
+if ($havePip -and $haveFrida -and $havePsutil) {
     Copy-Item "$wheelCache\*.whl" $wheelDir -Force
     OK "Reusing cached wheels"
     $cachedWheels | ForEach-Object { Write-Host "    $($_.Name) ($([Math]::Round($_.Length/1MB,1)) MB)" }
@@ -166,7 +167,7 @@ if (-not $downloaded) {
                           '--python-version','312',
                           '--only-binary=:all:',
                           '--timeout','120',
-                          'frida','psutil' `
+                          'pip','frida','psutil' `
             -NoNewWindow -Wait -PassThru `
             -RedirectStandardOutput $logFile `
             -RedirectStandardError $errFile
@@ -192,8 +193,54 @@ if (-not $downloaded) {
     exit 2
 }
 
-# ---------------------------------------------------------------- 4. Install deps script (runs on target machine)
-Step "Copying install-deps.bat for target machine"
+# ---------------------------------------------------------------- 4. Preinstall dependencies into portable Python
+Step "Installing bundled dependencies into portable Python"
+$pipCheck = Start-Process -FilePath (Join-Path $pyDest 'python.exe') `
+    -ArgumentList '-m','pip','--version' `
+    -NoNewWindow -Wait -PassThru `
+    -RedirectStandardOutput (Join-Path $BuildDir 'pip-check.log') `
+    -RedirectStandardError (Join-Path $BuildDir 'pip-check.err')
+if ($pipCheck.ExitCode -ne 0) {
+    if (-not (Test-Path $getPip)) {
+        Err "get-pip.py missing; cannot preinstall dependencies"
+        exit 4
+    }
+    $pipBootstrap = Start-Process -FilePath (Join-Path $pyDest 'python.exe') `
+        -ArgumentList $getPip,'--no-warn-script-location','--no-index','--find-links',$wheelDir `
+        -NoNewWindow -Wait -PassThru `
+        -RedirectStandardOutput (Join-Path $BuildDir 'pip-bootstrap.log') `
+        -RedirectStandardError (Join-Path $BuildDir 'pip-bootstrap.err')
+    if ($pipBootstrap.ExitCode -ne 0) {
+        Err "pip bootstrap failed"
+        Get-Content (Join-Path $BuildDir 'pip-bootstrap.err') -Tail 10 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        exit 4
+    }
+}
+
+$depInstall = Start-Process -FilePath (Join-Path $pyDest 'python.exe') `
+    -ArgumentList '-m','pip','install','--no-warn-script-location','--no-index','--find-links',$wheelDir,'frida','psutil' `
+    -NoNewWindow -Wait -PassThru `
+    -RedirectStandardOutput (Join-Path $BuildDir 'deps-install.log') `
+    -RedirectStandardError (Join-Path $BuildDir 'deps-install.err')
+if ($depInstall.ExitCode -ne 0) {
+    Err "Dependency preinstall failed"
+    Get-Content (Join-Path $BuildDir 'deps-install.err') -Tail 10 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+    exit 5
+}
+
+$depCheck = Start-Process -FilePath (Join-Path $pyDest 'python.exe') `
+    -ArgumentList '-c "import frida, psutil"' `
+    -NoNewWindow -Wait -PassThru `
+    -RedirectStandardOutput (Join-Path $BuildDir 'deps-check.log') `
+    -RedirectStandardError (Join-Path $BuildDir 'deps-check.err')
+if ($depCheck.ExitCode -ne 0) {
+    Err "Dependency import check failed"
+    exit 6
+}
+OK "frida + psutil preinstalled"
+
+# ---------------------------------------------------------------- 5. Install deps script (repair only)
+Step "Copying install-deps.bat repair script"
 $toolsDir = Join-Path $StageDir 'tools'
 New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
 
@@ -207,7 +254,7 @@ if (Test-Path $installSrc) {
     exit 3
 }
 
-# ---------------------------------------------------------------- 5. README
+# ---------------------------------------------------------------- 6. README
 Step "Copying README.txt"
 $readmeSrc = Join-Path $ProjectRoot 'README-portable.txt'
 $readmeDst = Join-Path $StageDir 'README.txt'
@@ -218,7 +265,7 @@ if (Test-Path $readmeSrc) {
     Warn "README-portable.txt not found at $readmeSrc - skipping"
 }
 
-# ---------------------------------------------------------------- 6. Zip it up
+# ---------------------------------------------------------------- 7. Zip it up
 Step "Creating zip archive"
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
 
@@ -237,7 +284,7 @@ $encoding = [System.Text.Encoding]::UTF8
 $zipSize = [Math]::Round((Get-Item $ZipPath).Length / 1MB, 1)
 OK "Archive: $ZipPath ($zipSize MB)"
 
-# ---------------------------------------------------------------- 7. Summary
+# ---------------------------------------------------------------- 8. Summary
 Step "Done"
 Write-Host ""
 Write-Host "  Portable bundle: $ZipPath" -ForegroundColor White
@@ -245,6 +292,5 @@ Write-Host "  Size: $zipSize MB" -ForegroundColor White
 Write-Host ""
 Write-Host "  To use on another PC:" -ForegroundColor White
 Write-Host "    1. Extract the zip anywhere" -ForegroundColor Gray
-Write-Host "    2. Double-click tools\install-deps.bat (first time only)" -ForegroundColor Gray
-Write-Host "    3. Right-click 启动.bat -> Run as administrator" -ForegroundColor Gray
+Write-Host "    2. Right-click 启动.bat -> Run as administrator" -ForegroundColor Gray
 Write-Host ""
