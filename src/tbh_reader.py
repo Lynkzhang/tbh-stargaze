@@ -551,6 +551,14 @@ def http_mode(host: str, port: int) -> int:
                     watched_ids.clear()
                     watched_ids.update(int(x) for x in fresh)
                     self._json({"ok": True, "watched_ids": sorted(watched_ids)})
+            elif p == "/watched/save":
+                with watched_lock:
+                    try:
+                        persist_watched()
+                    except OSError as e:
+                        self._json({"ok": False, "error": str(e)}, status=500)
+                        return
+                    self._json({"ok": True, "watched_ids": sorted(watched_ids)})
             else:
                 self._json({"error": "not found"}, status=404)
 
@@ -569,6 +577,7 @@ def http_mode(host: str, port: int) -> int:
     print(f"  POST /watched/add     {{ids:[...]}} - add watched", flush=True)
     print(f"  POST /watched/remove  {{ids:[...]}} - remove watched", flush=True)
     print(f"  POST /watched/reload  - reread watched_ids.json", flush=True)
+    print(f"  POST /watched/save    - write watched_ids.json", flush=True)
     print(f"Open in browser: http://{host}:{port}/", flush=True)
     try:
         server.serve_forever()

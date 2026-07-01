@@ -54,8 +54,8 @@ header .status{font-size:.78em;color:#fff;background:rgba(0,0,0,.25);padding:6px
 .suggestion:hover,.suggestion.active{background:#f0f7ff}
 .suggestion .sid{color:var(--mu);font-size:.78em;font-family:monospace}
 
-/* queue panels - 2 columns now (普通 + 首领) */
-.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+/* queue panels - 2 symmetric columns (普通 + 首领) */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 @media(max-width:900px){.grid{grid-template-columns:1fr}}
 .panel{background:var(--card);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden;display:flex;flex-direction:column;min-height:300px}
 .panel h2{padding:12px 16px;font-size:1em;color:#fff;display:flex;justify-content:space-between;align-items:center}
@@ -138,6 +138,7 @@ footer a:hover{text-decoration:underline}
     <input type="text" id="search" placeholder="搜索物品 ID 或名字添加到关注列表，如：灵魂石 / 144002" autocomplete="off">
     <div class="suggestions" id="sugs"></div>
   </div>
+  <button id="saveBtn">💾 保存关注</button>
   <button id="reloadBtn" class="warn">↻ 重读配置</button>
   <button id="muteBtn" class="muted" title="开关命中提醒声音">🔔 提醒开</button>
   <span class="hint">命中关注物品时浏览器响铃 + 弹窗</span>

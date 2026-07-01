@@ -11,6 +11,7 @@ const state = {
   lastSig: '',
   muted: false,
   lastHits: new Set(),
+  lastUpdateTs: 0,
 };
 
 // Maps the GRADE enum value to the CSS class shared with the TBH guide site.
@@ -127,6 +128,18 @@ function setStatus(connected, msg) {
   txt.textContent = msg || (connected ? '已连接' : '未连接');
 }
 
+function renderRefreshAge() {
+  const el = $('lastUpdate');
+  if (!el) return;
+  if (!state.lastUpdateTs) {
+    el.textContent = '--';
+    return;
+  }
+  const age = Math.max(0, Math.floor(Date.now() / 1000 - state.lastUpdateTs));
+  const d = new Date(state.lastUpdateTs * 1000);
+  el.textContent = `更新于 ${d.toLocaleTimeString()} · ${age} 秒前`;
+}
+
 // ---- render ----
 function renderQueue(panelId, countId, items, watchedSet) {
   const container = $(panelId);
@@ -219,8 +232,8 @@ async function fetchQueue() {
   if (!r) return;
   setStatus(r.connected, r.status);
   if (r.last_update) {
-    const d = new Date(r.last_update * 1000);
-    $('lastUpdate').textContent = '更新于 ' + d.toLocaleTimeString();
+    state.lastUpdateTs = r.last_update;
+    renderRefreshAge();
   }
 
   if (r.watched_ids) {
@@ -340,6 +353,15 @@ function setupSearch() {
 
 // ---- buttons ----
 function setupButtons() {
+  $('saveBtn').addEventListener('click', async () => {
+    const r = await api('/watched/save', { method: 'POST' });
+    if (r && r.ok) {
+      toast('已保存关注配置', `共 ${r.watched_ids.length} 个关注物品`);
+    } else {
+      toast('保存失败', JSON.stringify(r));
+    }
+  });
+
   $('reloadBtn').addEventListener('click', async () => {
     const r = await api('/watched/reload', { method: 'POST' });
     if (r && r.ok) {
@@ -372,6 +394,7 @@ async function main() {
   await fetchQueue();
 
   setInterval(fetchQueue, POLL_MS);
+  setInterval(renderRefreshAge, 1000);
 }
 
 main().catch(e => {
