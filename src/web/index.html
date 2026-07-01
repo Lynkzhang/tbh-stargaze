@@ -15,15 +15,21 @@ body{font-family:'Microsoft YaHei','PingFang SC','Hiragino Sans GB',sans-serif;b
 .c{max-width:1280px;margin:0 auto;padding:14px}
 
 /* header */
-header{background:linear-gradient(135deg,#667eea,#764ba2);padding:18px 20px;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+header{background:linear-gradient(135deg,#667eea,#764ba2);padding:18px 20px;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
 header h1{color:#fff;font-size:1.4em;display:flex;align-items:center;gap:8px}
 header .sub{color:rgba(255,255,255,.85);font-size:.78em;margin-top:2px}
+header .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 header .status{font-size:.78em;color:#fff;background:rgba(0,0,0,.25);padding:6px 12px;border-radius:18px;display:flex;align-items:center;gap:6px}
 .dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
 .dot.ok{background:var(--gn);box-shadow:0 0 6px var(--gn)}
 .dot.warn{background:var(--or)}
 .dot.err{background:var(--rd);animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* refresh banner */
+.refresh-banner{margin:-4px 0 14px;background:linear-gradient(90deg,#fff3cd,#ffe082);border:1px solid #ffd54f;border-left:5px solid var(--or);border-radius:10px;box-shadow:0 2px 10px rgba(255,136,0,.18);padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:1em;font-weight:700;color:#7a4b00}
+.refresh-banner .sec{font-family:'Consolas','Monaco',monospace;font-size:1.35em;color:#d35400;line-height:1}
+.refresh-banner .time{font-size:.82em;color:#8a6d1d;font-weight:500}
 
 /* control bar */
 .bar{background:var(--card);padding:10px 14px;border-radius:10px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
@@ -127,11 +133,15 @@ footer a:hover{text-decoration:underline}
     <h1>🔮 TBHStargaze</h1>
     <div class="sub">宝箱观星 · 提前看到下一批掉落</div>
   </div>
-  <div class="status">
-    <span class="dot" id="dot"></span>
-    <span id="statusText">连接中…</span>
+  <div class="meta">
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="statusText">连接中…</span>
+    </div>
   </div>
 </header>
+
+<div class="refresh-banner" id="bannerUpdate">等待队列刷新…</div>
 
 <div class="bar">
   <div class="search-wrap">

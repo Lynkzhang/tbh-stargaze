@@ -130,14 +130,16 @@ function setStatus(connected, msg) {
 
 function renderRefreshAge() {
   const el = $('lastUpdate');
-  if (!el) return;
+  const banner = $('bannerUpdate');
   if (!state.lastUpdateTs) {
-    el.textContent = '--';
+    if (el) el.textContent = '--';
+    if (banner) banner.textContent = '等待队列刷新…';
     return;
   }
   const age = Math.max(0, Math.floor(Date.now() / 1000 - state.lastUpdateTs));
   const d = new Date(state.lastUpdateTs * 1000);
-  el.textContent = `更新于 ${d.toLocaleTimeString()} · ${age} 秒前`;
+  if (el) el.textContent = `更新于 ${d.toLocaleTimeString()} · ${age} 秒前`;
+  if (banner) banner.innerHTML = `上次队列刷新 <span class="sec">${age}</span> 秒前 <span class="time">${d.toLocaleTimeString()}</span>`;
 }
 
 // ---- render ----
