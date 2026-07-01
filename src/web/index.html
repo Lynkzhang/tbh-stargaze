@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TBHStargaze · 宝箱观星</title>
+<style>
+:root{
+  --bg:#f5f5f5; --card:#fff; --hd:#e8e8e8; --ac:#e94560; --tx:#333; --mu:#666;
+  --bl:#3498db; --gn:#2ecc71; --or:#ff8800; --rd:#ff3344;
+  --watch-bg:#FFEB3B; --watch-fg:#000;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei','PingFang SC','Hiragino Sans GB',sans-serif;background:var(--bg);color:var(--tx);line-height:1.5;font-size:14px}
+.c{max-width:1280px;margin:0 auto;padding:14px}
+
+/* header */
+header{background:linear-gradient(135deg,#667eea,#764ba2);padding:18px 20px;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+header h1{color:#fff;font-size:1.4em;display:flex;align-items:center;gap:8px}
+header .sub{color:rgba(255,255,255,.85);font-size:.78em;margin-top:2px}
+header .status{font-size:.78em;color:#fff;background:rgba(0,0,0,.25);padding:6px 12px;border-radius:18px;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
+.dot.ok{background:var(--gn);box-shadow:0 0 6px var(--gn)}
+.dot.warn{background:var(--or)}
+.dot.err{background:var(--rd);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* control bar */
+.bar{background:var(--card);padding:10px 14px;border-radius:10px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.bar input[type=text]{flex:1;min-width:200px;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:.9em}
+.bar input[type=text]:focus{outline:none;border-color:var(--ac)}
+.bar button{padding:7px 14px;border:none;border-radius:6px;background:var(--bl);color:#fff;font-size:.85em;cursor:pointer;transition:background .2s}
+.bar button:hover{background:#2980b9}
+.bar button.warn{background:var(--or)} .bar button.warn:hover{background:#e07700}
+.bar button.muted{background:#999} .bar button.muted:hover{background:#777}
+.bar .hint{font-size:.75em;color:var(--mu)}
+
+/* watched chips */
+.watched-bar{background:var(--card);padding:10px 14px;border-radius:10px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.watched-bar h3{font-size:.85em;color:var(--mu);margin-bottom:6px;font-weight:normal}
+.watched-bar h3 b{color:var(--ac)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px}
+.chip{background:var(--watch-bg);color:var(--watch-fg);padding:3px 8px 3px 10px;border-radius:14px;font-size:.82em;display:inline-flex;align-items:center;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.chip .x{cursor:pointer;font-weight:bold;opacity:.6;font-size:1.1em;line-height:1}
+.chip .x:hover{opacity:1;color:var(--rd)}
+.chips .empty{color:var(--mu);font-size:.8em;font-style:italic;padding:4px 0}
+
+/* search dropdown */
+.search-wrap{position:relative;flex:1;min-width:200px}
+.suggestions{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:6px;margin-top:2px;max-height:260px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.12);display:none}
+.suggestions.show{display:block}
+.suggestion{padding:6px 10px;cursor:pointer;font-size:.85em;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f0f0f0}
+.suggestion:last-child{border-bottom:none}
+.suggestion:hover,.suggestion.active{background:#f0f7ff}
+.suggestion .sid{color:var(--mu);font-size:.78em;font-family:monospace}
+
+/* queue panels - 2 columns now (普通 + 首领) */
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden;display:flex;flex-direction:column;min-height:300px}
+.panel h2{padding:12px 16px;font-size:1em;color:#fff;display:flex;justify-content:space-between;align-items:center}
+.panel.normal h2{background:linear-gradient(90deg,#3498db,#2980b9)}
+.panel.boss h2{background:linear-gradient(90deg,#e94560,#c2185b)}
+.panel h2 .count{font-size:.78em;font-weight:normal;background:rgba(0,0,0,.25);padding:2px 8px;border-radius:10px}
+
+/* item rows */
+.items{padding:8px;overflow-y:auto;max-height:75vh}
+.items.empty::after{content:"等待数据…";display:block;color:var(--mu);text-align:center;padding:30px 10px;font-size:.85em}
+.item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;margin-bottom:4px;border-left:3px solid transparent;background:#fafafa;transition:background .15s}
+.item:hover{background:#f0f0f0}
+.item.first{background:linear-gradient(90deg,#fff9e1,#fffbe8);border-left-color:var(--or);font-weight:bold;padding:11px 10px;box-shadow:inset 0 0 0 1px rgba(255,136,0,.3)}
+.item.first .idx{background:var(--or);color:#fff;animation:bounce 1.2s infinite}
+@keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.item.watched{background:linear-gradient(90deg,#fff8b8,#fff3c4);border-left-color:var(--ac)}
+.item.watched.first{background:linear-gradient(90deg,#ffe680,#fff3a0);border-left-color:var(--ac)}
+.item .idx{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:#ccc;color:#fff;font-size:.75em;font-weight:bold;display:flex;align-items:center;justify-content:center}
+.item .name{flex:1;font-size:.93em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.item .name .tier{font-size:.78em;font-weight:normal;opacity:.85;margin-left:4px}
+.chip .tier{font-size:.85em;opacity:.85;margin-left:2px}
+.suggestion .tier{font-size:.82em;opacity:.85;margin-left:2px}
+.item .id{font-family:monospace;font-size:.72em;color:var(--mu);flex-shrink:0;opacity:.7}
+
+/* Steam Market price badge */
+.item .price{flex-shrink:0;font-size:.78em;padding:2px 7px;border-radius:10px;font-family:'Consolas','Monaco',monospace;font-weight:600;text-decoration:none;letter-spacing:.3px;white-space:nowrap}
+.item .price.ok{background:#e8f5e9;color:#1b5e20;border:1px solid #c8e6c9}
+.item .price.ok:hover{background:#c8e6c9;color:#0d3a14}
+.item .price.loading{background:#fff3e0;color:#b26a00;border:1px solid #ffe0b2;opacity:.7}
+.item .price.fail{background:#ffebee;color:#c62828;border:1px solid #ffcdd2}
+.item .price.na{background:#f5f5f5;color:#999;border:1px solid #eee;cursor:default}
+.item .price.empty{background:#f0f0f0;color:#888;border:1px solid #e0e0e0;cursor:pointer}
+.item .price.empty:hover{background:#e0e0e0}
+.item .star{cursor:pointer;font-size:1.1em;opacity:.35;transition:opacity .15s}
+.item .star:hover{opacity:1;color:var(--ac)}
+.item.watched .star{opacity:1;color:var(--ac)}
+.item.first .label{background:var(--or);color:#fff;font-size:.65em;padding:2px 6px;border-radius:4px;flex-shrink:0;font-weight:normal}
+
+/* 稀有度颜色 - 与 TBH 攻略站完全一致 (游戏纹理实采) */
+.c-common{color:#888}
+.c-uncommon{color:#3b7b1d}
+.c-rare{color:#21528e}
+.c-legendary{color:#904503}
+.c-immortal{color:#8c1818}
+.c-arcana{color:#652284}
+.c-beyond{color:#8f1e45}
+.c-celestial{color:#0e9aa7}
+.c-divine{color:#d4a017}
+.c-cosmic{color:#6c2f1f}
+
+/* toast / alert */
+#toast{position:fixed;top:20px;right:20px;background:var(--ac);color:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.25);font-size:.9em;z-index:1000;transform:translateX(120%);transition:transform .3s ease-out;max-width:340px}
+#toast.show{transform:translateX(0)}
+#toast .t{font-weight:bold;margin-bottom:4px}
+#toast.alert{background:#ff9800;animation:flash .8s 2}
+@keyframes flash{0%,100%{background:#ff9800}50%{background:var(--rd)}}
+
+/* footer */
+footer{text-align:center;padding:14px;color:var(--mu);font-size:.72em;margin-top:14px}
+footer a{color:var(--bl);text-decoration:none}
+footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="c">
+
+<header>
+  <div>
+    <h1>🔮 TBHStargaze</h1>
+    <div class="sub">宝箱观星 · 提前看到下一批掉落</div>
+  </div>
+  <div class="status">
+    <span class="dot" id="dot"></span>
+    <span id="statusText">连接中…</span>
+  </div>
+</header>
+
+<div class="bar">
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="搜索物品 ID 或名字添加到关注列表，如：灵魂石 / 144002" autocomplete="off">
+    <div class="suggestions" id="sugs"></div>
+  </div>
+  <button id="reloadBtn" class="warn">↻ 重读配置</button>
+  <button id="muteBtn" class="muted" title="开关命中提醒声音">🔔 提醒开</button>
+  <span class="hint">命中关注物品时浏览器响铃 + 弹窗</span>
+</div>
+
+<div class="watched-bar">
+  <h3>关注物品 (<b id="watchedCount">0</b>) · 命中时高亮 + 提醒</h3>
+  <div class="chips" id="chips"><span class="empty">尚未添加</span></div>
+</div>
+
+<div class="grid">
+  <div class="panel normal">
+    <h2>普通宝箱队列 <span class="count" id="normalCount">0</span></h2>
+    <div class="items empty" id="normalList"></div>
+  </div>
+  <div class="panel boss">
+    <h2>首领宝箱队列 <span class="count" id="bossCount">0</span></h2>
+    <div class="items empty" id="bossList"></div>
+  </div>
+</div>
+
+<footer>
+  TBHStargaze · 复用 Frida agent · 只读内存 · <a href="/health" target="_blank">/health</a>
+  · <a href="/queue" target="_blank">/queue</a>
+  · <span id="lastUpdate">--</span>
+</footer>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

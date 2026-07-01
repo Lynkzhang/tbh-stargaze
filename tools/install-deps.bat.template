@@ -1,0 +1,55 @@
+@echo off
+setlocal
+
+set "ROOT=%~dp0"
+set "ROOT=%ROOT:~0,-1%"
+set "PYDIR=%ROOT%\..\python-portable"
+set "WHEELS=%ROOT%\..\wheels"
+
+echo ============================================================
+echo  TBHStargaze - Install dependencies (first run only)
+echo ============================================================
+echo.
+
+if not exist "%PYDIR%\python.exe" (
+    echo [ERROR] Portable Python not found at:
+    echo         %PYDIR%
+    pause
+    exit /b 1
+)
+
+if not exist "%PYDIR%\get-pip.py" (
+    echo [ERROR] get-pip.py missing.
+    echo         Re-extract the zip or copy get-pip.py to %PYDIR%
+    pause
+    exit /b 2
+)
+
+rem Step 1: Bootstrap pip into the embeddable Python (offline first)
+echo [1/2] Installing pip...
+"%PYDIR%\python.exe" "%PYDIR%\get-pip.py" --no-warn-script-location --no-index --find-links="%WHEELS%" 2>nul
+if errorlevel 1 (
+    echo [INFO] Offline install failed, trying Tsinghua mirror...
+    "%PYDIR%\python.exe" "%PYDIR%\get-pip.py" --no-warn-script-location -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
+    if errorlevel 1 (
+        echo [ERROR] pip install failed.
+        pause
+        exit /b 3
+    )
+)
+
+rem Step 2: Install frida + psutil from local wheels
+echo [2/2] Installing frida and psutil from local wheels...
+"%PYDIR%\python.exe" -m pip install --no-warn-script-location --no-index --find-links="%WHEELS%" frida psutil
+if errorlevel 1 (
+    echo [ERROR] Wheel install failed.
+    pause
+    exit /b 4
+)
+
+echo.
+echo ============================================================
+echo  DONE! You can now run the launcher .bat to start the tool.
+echo ============================================================
+echo.
+pause
