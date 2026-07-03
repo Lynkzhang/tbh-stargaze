@@ -7,7 +7,7 @@
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue) ![License: MIT](https://img.shields.io/badge/License-MIT-green) ![Platform: Windows](https://img.shields.io/badge/Platform-Windows-lightgrey)
 
 ## ✨ 功能
-<img width="1383" height="917" alt="image" src="https://github.com/user-attachments/assets/3d44064e-733a-4aaf-a9f5-adafa0b7dbf0" />
+<img width="1304" height="846" alt="image" src="https://github.com/user-attachments/assets/63343409-30b8-421d-a1a2-ecae67d16d42" />
 
 - **宝箱队列预览** — 实时显示普通/首领宝箱的掉落队列
 - **稀有度着色** — 10 级稀有度颜色，与 [TBH 攻略站](https://lynkzhang.github.io/tbh-guide/) 一致
