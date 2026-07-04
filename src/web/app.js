@@ -12,6 +12,7 @@ const state = {
   muted: false,
   lastHits: new Set(),
   lastUpdateTs: 0,
+  refreshReadyAlerted: false,
 };
 
 // Maps the GRADE enum value to the CSS class shared with the TBH guide site.
@@ -89,6 +90,8 @@ async function api(path, opts) {
 
 // ---- toast ----
 let toastTimer = null;
+let audioCtx = null;
+
 function toast(title, body, isAlert) {
   const t = $('toast');
   t.innerHTML = `<div class="t">${title}</div>${body || ''}`;
@@ -97,26 +100,48 @@ function toast(title, body, isAlert) {
   toastTimer = setTimeout(() => { t.className = ''; }, 4500);
 }
 
+function getAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function playBeep(ctx) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.frequency.value = 880; osc.type = 'sine';
+  gain.gain.setValueAtTime(0.18, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+  osc.start(); osc.stop(ctx.currentTime + 0.25);
+  setTimeout(() => {
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2); gain2.connect(ctx.destination);
+    osc2.frequency.value = 1100; osc2.type = 'sine';
+    gain2.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc2.start(); osc2.stop(ctx.currentTime + 0.25);
+  }, 180);
+}
+
+function unlockAudio() {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+  } catch (e) { /* ignore */ }
+}
+
 function beep() {
   if (state.muted) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880; osc.type = 'sine';
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-    osc.start(); osc.stop(ctx.currentTime + 0.25);
-    setTimeout(() => {
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2); gain2.connect(ctx.destination);
-      osc2.frequency.value = 1100; osc2.type = 'sine';
-      gain2.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-      osc2.start(); osc2.stop(ctx.currentTime + 0.25);
-    }, 180);
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => playBeep(ctx)).catch(() => {});
+    } else {
+      playBeep(ctx);
+    }
   } catch (e) { /* ignore */ }
 }
 
@@ -140,6 +165,11 @@ function renderRefreshAge() {
   const d = new Date(state.lastUpdateTs * 1000);
   if (el) el.textContent = `更新于 ${d.toLocaleTimeString()} · ${age} 秒前`;
   if (banner) banner.innerHTML = `上次队列刷新 <span class="sec">${age}</span> 秒前 <span class="time">${d.toLocaleTimeString()}</span>`;
+  if (age >= 10 && !state.refreshReadyAlerted) {
+    state.refreshReadyAlerted = true;
+    toast('可以刷新下一批了', '上次队列刷新已超过 10 秒', true);
+    beep();
+  }
 }
 
 // ---- render ----
@@ -234,6 +264,9 @@ async function fetchQueue() {
   if (!r) return;
   setStatus(r.connected, r.status);
   if (r.last_update) {
+    if (r.last_update !== state.lastUpdateTs) {
+      state.refreshReadyAlerted = false;
+    }
     state.lastUpdateTs = r.last_update;
     renderRefreshAge();
   }
@@ -382,8 +415,14 @@ function setupButtons() {
   });
 }
 
+function setupAudioUnlock() {
+  document.addEventListener('pointerdown', unlockAudio, { passive: true });
+  document.addEventListener('keydown', unlockAudio);
+}
+
 // ---- bootstrap ----
 async function main() {
+  setupAudioUnlock();
   setupSearch();
   setupButtons();
 
