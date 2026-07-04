@@ -237,6 +237,16 @@ class FridaWorker:
             pass
         self._session = None
 
+    def refresh_queue(self) -> dict:
+        script = self._script
+        if script is None:
+            return {"ok": False, "error": "agent not loaded"}
+        try:
+            exports = getattr(script, "exports_sync", None) or script.exports
+            return exports.refreshqueue()
+        except Exception as e:  # noqa: BLE001 - surface Frida/RPC errors to HTTP caller
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
     def _on_message(self, message: dict, data) -> None:
         if message.get("type") != "send":
             err = message.get("description") or message.get("stack") or str(message)
@@ -559,6 +569,8 @@ def http_mode(host: str, port: int) -> int:
                         self._json({"ok": False, "error": str(e)}, status=500)
                         return
                     self._json({"ok": True, "watched_ids": sorted(watched_ids)})
+            elif p == "/queue/refresh":
+                self._json(worker.refresh_queue())
             else:
                 self._json({"error": "not found"}, status=404)
 
@@ -578,6 +590,7 @@ def http_mode(host: str, port: int) -> int:
     print(f"  POST /watched/remove  {{ids:[...]}} - remove watched", flush=True)
     print(f"  POST /watched/reload  - reread watched_ids.json", flush=True)
     print(f"  POST /watched/save    - write watched_ids.json", flush=True)
+    print(f"  POST /queue/refresh   - force re-read current queue", flush=True)
     print(f"Open in browser: http://{host}:{port}/", flush=True)
     try:
         server.serve_forever()

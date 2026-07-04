@@ -30,6 +30,9 @@ header .status{font-size:.78em;color:#fff;background:rgba(0,0,0,.25);padding:6px
 .refresh-banner{margin:-4px 0 14px;background:linear-gradient(90deg,#fff3cd,#ffe082);border:1px solid #ffd54f;border-left:5px solid var(--or);border-radius:10px;box-shadow:0 2px 10px rgba(255,136,0,.18);padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:1em;font-weight:700;color:#7a4b00}
 .refresh-banner .sec{font-family:'Consolas','Monaco',monospace;font-size:1.35em;color:#d35400;line-height:1}
 .refresh-banner .time{font-size:.82em;color:#8a6d1d;font-weight:500}
+.refresh-rule{margin:-6px 0 14px;background:#fff;border:1px solid #ffe0b2;border-radius:10px;padding:10px 14px;color:#7a4b00;font-size:.82em;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.refresh-rule b{color:#d35400}
+.refresh-rule .muted{color:#8a6d1d}
 
 /* control bar */
 .bar{background:var(--card);padding:10px 14px;border-radius:10px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
@@ -142,6 +145,12 @@ footer a:hover{text-decoration:underline}
 </header>
 
 <div class="refresh-banner" id="bannerUpdate">等待队列刷新…</div>
+
+<div class="refresh-rule">
+  切图限制参考：游戏约在 <b>300 秒窗口</b> 内统计切图/请求次数，过快连续切图可能触发服务器限制。
+  <b>15 秒提示</b> 用来提醒你本次队列已经稳定一段时间，可以考虑再切一次图刷新下一批；这不是解除限制，只是节奏提醒。
+  <span class="muted">保守节奏：300 秒内尽量不要超过约 20 次。</span>
+</div>
 
 <div class="bar">
   <div class="search-wrap">

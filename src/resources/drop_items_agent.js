@@ -236,22 +236,28 @@ if (!MOD) {
                 send(JSON.stringify({ type: 'queue', source: source, normal: normal, boss: boss, act: act }));
             }
 
+            function forceEmit(source) {
+                g_lastKey = '';
+                emitIfChanged(source || 'manual');
+            }
+
             // ---- 纯异步堆扫描定位实例（完全不 hook，零钩子开销，游戏不卡）----
             // 掉落数据实例是常驻单例（地址固定、原地更新内容）。因此不需要任何 Interceptor
             // hook —— 启动时异步扫描锁定一次，之后轮询读取即可看到掉落/切等级带来的内容变化。
             // 不 hook = 玩家点背包/符文/魔方等任何操作都不会经过我们的代码，彻底消除卡顿。
             // Memory.scan 为异步分块执行，扫描期间也不会冻结游戏。
-            var PAT = (function () {
-                var hx = K.toString(16); while (hx.length < 16) hx = '0' + hx;
+            function classPattern(k) {
+                var hx = k.toString(16); while (hx.length < 16) hx = '0' + hx;
                 var bb = []; for (var i = 0; i < 8; i++) bb.push(hx.substr((7 - i) * 2, 2));
                 return bb.join(' ');
-            })();
+            }
+            var PAT = classPattern(K);
             var g_scanning = false;
-            function scanRange(base, size) {
+            function scanRange(base, size, pat) {
                 return new Promise(function (resolve) {
                     var hits = [];
                     try {
-                        Memory.scan(base, size, PAT, {
+                        Memory.scan(base, size, pat, {
                             onMatch: function (addr) { hits.push(addr); },
                             onComplete: function () { resolve(hits); },
                             onError: function () { resolve(hits); }
@@ -266,7 +272,7 @@ if (!MOD) {
                     var ranges = Process.enumerateRanges('rw-');
                     for (var r = 0; r < ranges.length; r++) {
                         if (g_vw && structOk(g_vw)) return;     // 已捕获
-                        var hits = await scanRange(ranges[r].base, ranges[r].size);
+                        var hits = await scanRange(ranges[r].base, ranges[r].size, PAT);
                         for (var i = 0; i < hits.length; i++) {
                             if (headerOk(hits[i]) && structOk(hits[i])) { g_vw = hits[i]; return; }
                         }
@@ -274,6 +280,22 @@ if (!MOD) {
                 } catch (e) { } finally { g_scanning = false; }
             }
             scanForInstance();   // 启动即扫描，无需等待掉落
+
+            rpc.exports = {
+                refreshqueue: function () {
+                    try {
+                        if (!g_vw || !structOk(g_vw)) {
+                            g_vw = null;
+                            scanForInstance();
+                            return { ok: true, status: 'scanning' };
+                        }
+                        forceEmit('manual');
+                        return { ok: true, status: 'emitted' };
+                    } catch (e) {
+                        return { ok: false, error: String(e) };
+                    }
+                }
+            };
 
             // 轮询：跟随 g_vw 读取，队列变化时刷新；丢失则异步重新扫描
             setInterval(function () {

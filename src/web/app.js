@@ -126,6 +126,23 @@ function playBeep(ctx) {
   }, 180);
 }
 
+function playRefreshCue(ctx) {
+  const notes = [523.25, 659.25, 783.99];
+  notes.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    osc.type = 'triangle';
+    const start = ctx.currentTime + idx * 0.11;
+    gain.gain.setValueAtTime(0.001, start);
+    gain.gain.exponentialRampToValueAtTime(0.14, start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.16);
+    osc.start(start);
+    osc.stop(start + 0.17);
+  });
+}
+
 function unlockAudio() {
   try {
     const ctx = getAudioContext();
@@ -141,6 +158,18 @@ function beep() {
       ctx.resume().then(() => playBeep(ctx)).catch(() => {});
     } else {
       playBeep(ctx);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function refreshCue() {
+  if (state.muted) return;
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => playRefreshCue(ctx)).catch(() => {});
+    } else {
+      playRefreshCue(ctx);
     }
   } catch (e) { /* ignore */ }
 }
@@ -165,10 +194,10 @@ function renderRefreshAge() {
   const d = new Date(state.lastUpdateTs * 1000);
   if (el) el.textContent = `更新于 ${d.toLocaleTimeString()} · ${age} 秒前`;
   if (banner) banner.innerHTML = `上次队列刷新 <span class="sec">${age}</span> 秒前 <span class="time">${d.toLocaleTimeString()}</span>`;
-  if (age >= 10 && !state.refreshReadyAlerted) {
+  if (age >= 15 && !state.refreshReadyAlerted) {
     state.refreshReadyAlerted = true;
-    toast('可以刷新下一批了', '上次队列刷新已超过 10 秒', true);
-    beep();
+    toast('可以切图刷新了', '上次队列刷新已超过 15 秒', true);
+    refreshCue();
   }
 }
 
